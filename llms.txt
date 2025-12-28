@@ -1,0 +1,42 @@
+# Haystack
+
+> Haystack is an open-source framework that allows developers to build search systems powered by AI for their applications.
+
+## Core Features / Products
+- [Getting Started](https://docs.haystack.deepset.ai/docs/getting_started): Begin building with Haystack using this quick start guide.
+- [Quickstart Guide](https://docs.haystack.deepset.ai/docs/quickstart): Learn to set up Haystack and run your first pipeline.
+- [Pipelines](https://docs.haystack.deepset.ai/docs/pipelines): Understand how to build and customize search pipelines.
+- [Components](https://docs.haystack.deepset.ai/docs/components): Explore various components and their functionalities.
+- [Storage](https://docs.haystack.deepset.ai/docs/storage): Learn about different storage options supported by Haystack.
+- [Retrieval](https://docs.haystack.deepset.ai/docs/retrieval): Discover methods for retrieving relevant documents.
+- [Question Answering](https://docs.haystack.deepset.ai/docs/faq): Get insights on implementing question-answering systems.
+- [Search](https://docs.haystack.deepset.ai/docs/search): Implement a full-text search to enhance user experience.
+  
+## Pricing and Plans
+- [Pricing](https://docs.haystack.deepset.ai/docs/pricing): Review pricing tiers and choose the best plan for your needs.
+
+## Resources and Insights
+- [Use Cases](https://docs.haystack.deepset.ai/docs/use_cases): Explore practical implementations of Haystack in various industries.
+- [Comparisons](https://docs.haystack.deepset.ai/docs/comparisons): Compare Haystack with other search frameworks and tools.
+- [Case Studies](https://docs.haystack.deepset.ai/docs/case_studies): Discover how customers have successfully implemented Haystack.
+
+## Integrations / API
+- [Integrations](https://docs.haystack.deepset.ai/docs/integrations): Learn which services and tools can be integrated with Haystack.
+- [API Reference](https://docs.haystack.deepset.ai/docs/api): Access detailed API documentation for developers.
+
+## Support and Documentation
+- [Documentation](https://docs.haystack.deepset.ai/docs): Access all user guides, API references, and comprehensive documentation.
+- [FAQ](https://docs.haystack.deepset.ai/docs/faq): Find answers to frequently asked questions about Haystack.
+- [Community](https://docs.haystack.deepset.ai/docs/community): Connect with other Haystack users and contributors for support.
+- [Contact Support](https://docs.haystack.deepset.ai/docs/support): Get in touch with the support team for help and inquiries.
+
+## Company Information
+- [About Us](https://docs.haystack.deepset.ai/docs/about): Learn about Haystack’s mission and values.
+- [Blog](https://docs.haystack.deepset.ai/docs/blog): Stay updated with the latest news, tips, and updates from Haystack.
+
+## Legal and Compliance
+- [Privacy Policy](https://docs.haystack.deepset.ai/docs/privacy): Review how we handle user data and privacy.
+- [Terms of Service](https://docs.haystack.deepset.ai/docs/terms): Read the terms and conditions for using Haystack.
+
+## Contact and Support
+- [Contact Us](https://docs.haystack.deepset.ai/docs/contact): Get in touch with the Haystack team for inquiries and support.
