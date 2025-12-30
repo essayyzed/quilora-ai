@@ -5,7 +5,7 @@ Centralized configuration management using Pydantic Settings.
 All settings can be overridden via environment variables.
 """
 
-from typing import Optional, List
+from typing import Optional, List, Union
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
@@ -18,7 +18,9 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
-        extra="ignore"
+        extra="ignore",
+        # Don't try to parse strings as JSON for list fields
+        env_parse_none_str="null"
     )
     
     # -------------------------------------------------------------------------
@@ -77,7 +79,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = Field(default=50, ge=0, le=500, description="Overlap between chunks in tokens")
     chunk_separator: str = Field(default="\n\n", description="Separator for splitting documents")
     
-    supported_file_types: List[str] = Field(
+    supported_file_types: Union[str, List[str]] = Field(
         default=["pdf", "txt", "md", "docx"],
         description="Supported document file types"
     )
@@ -105,7 +107,7 @@ class Settings(BaseSettings):
     host: str = Field(default="0.0.0.0", description="Server host")
     port: int = Field(default=8000, ge=1, le=65535)
     
-    cors_origins: List[str] = Field(
+    cors_origins: Union[str, List[str]] = Field(
         default=["http://localhost:3000", "http://localhost:5173"],
         description="Allowed CORS origins"
     )
