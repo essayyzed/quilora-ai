@@ -27,28 +27,36 @@ quilora-ai
 ## Setup Instructions
 
 1. **Clone the repository:**
-   ```
+   ```bash
    git clone <repository-url>
    cd quilora-ai
    ```
 
-2. **Create a virtual environment:**
+2. **Set up environment variables:**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your actual API keys
+   # NEVER commit .env - it contains secrets!
    ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-   ```
+   
+   Get your API keys:
+   - Groq: https://console.groq.com (free)
+   - OpenAI: https://platform.openai.com/api-keys
+   - Anthropic: https://console.anthropic.com (optional)
 
 3. **Install dependencies:**
-   ```
-   pip install -r requirements.txt
+   ```bash
+   uv sync
    ```
 
-4. **Set up environment variables:**
-   Copy `.env.example` to `.env` and update the values as needed.
-
-5. **Run the FastAPI application:**
+4. **Start Qdrant (required for vector storage):**
+   ```bash
+   docker run -p 6333:6333 qdrant/qdrant
    ```
-   uvicorn src.api.main:app --reload
+
+5. **Run the application:**
+   ```bash
+   uv run uvicorn src.api.main:app --reload
    ```
 
 ## Usage
