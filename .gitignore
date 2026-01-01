@@ -8,3 +8,28 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Environment variables (contains secrets!)
+.env
+.env.local
+.env.*.local
+*.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+data/documents/*
+!data/documents/.gitkeep
+
+# Logs
+*.log
+logs/
