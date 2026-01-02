@@ -17,7 +17,7 @@ from qdrant_client.models import (
     FieldCondition,
     MatchValue,
 )
-from haystack import Document
+from haystack.dataclasses import Document
 from src.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -123,9 +123,12 @@ class QdrantDocumentStore:
                 logger.warning(f"Document {doc.id} has no embedding, skipping")
                 continue
             
-            # Convert document ID to integer (hash) for Qdrant
-            # Store original ID in payload
-            point_id = int(hashlib.md5(str(doc.id).encode()).hexdigest()[:8], 16)
+            # ID Scheme Version: v1 - UUID format from MD5 hash
+            # Convert document ID to UUID string for Qdrant point ID
+            # MD5 produces 128-bit hash which maps to UUID format
+            # Store original ID in payload for lookups
+            md5_hash = hashlib.md5(str(doc.id).encode()).hexdigest()
+            point_id = f"{md5_hash[:8]}-{md5_hash[8:12]}-{md5_hash[12:16]}-{md5_hash[16:20]}-{md5_hash[20:]}"
             
             # Prepare metadata (exclude embedding from payload)
             payload = {
@@ -241,14 +244,19 @@ class QdrantDocumentStore:
             filters: Metadata filters for deletion
             
         Returns:
-            Number of documents deleted
+            Number of documents deleted. For filter-based deletion, returns -1
+            to indicate success but unknown count (Qdrant does not provide
+            deletion counts for filter-based operations). Returns 0 if no
+            parameters provided (no-op).
         """
         if document_ids:
-            # Convert string IDs to integer hashes
-            point_ids = [
-                int(hashlib.md5(str(doc_id).encode()).hexdigest()[:8], 16)
-                for doc_id in document_ids
-            ]
+            # ID Scheme Version: v1 - UUID format from MD5 hash
+            # Convert document IDs to UUID strings matching write_documents format
+            point_ids = []
+            for doc_id in document_ids:
+                md5_hash = hashlib.md5(str(doc_id).encode()).hexdigest()
+                point_id = f"{md5_hash[:8]}-{md5_hash[8:12]}-{md5_hash[12:16]}-{md5_hash[16:20]}-{md5_hash[20:]}"
+                point_ids.append(point_id)
             try:
                 self.client.delete(
                     collection_name=self.collection_name,
@@ -277,8 +285,8 @@ class QdrantDocumentStore:
                     collection_name=self.collection_name,
                     points_selector=qdrant_filter,
                 )
-                logger.info(f"Deleted documents matching filters")
-                return 1  # Qdrant doesn't return count for filter-based deletion
+                logger.info(f"Deleted documents matching filters (count unknown)")
+                return -1  # Qdrant doesn't return count for filter-based deletion
             except Exception as e:
                 logger.error(f"Failed to delete documents by filter: {e}")
                 raise
@@ -293,7 +301,7 @@ class QdrantDocumentStore:
             return collection_info.points_count
         except Exception as e:
             logger.error(f"Failed to count documents: {e}")
-            return 0
+            raise
     
     def delete_collection(self) -> None:
         """Delete the entire collection. Use with caution!"""

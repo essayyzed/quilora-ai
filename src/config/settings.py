@@ -19,7 +19,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
-        # Don't try to parse strings as JSON for list fields
+        # Treat string "null" as None rather than attempting to parse it
         env_parse_none_str="null"
     )
     
@@ -79,6 +79,8 @@ class Settings(BaseSettings):
     chunk_overlap: int = Field(default=50, ge=0, le=500, description="Overlap between chunks in tokens")
     chunk_separator: str = Field(default="\n\n", description="Separator for splitting documents")
     
+    # Note: Union[str, List[str]] prevents Pydantic Settings from JSON-parsing env vars.
+    # The validator ensures this is always List[str] after initialization.
     supported_file_types: Union[str, List[str]] = Field(
         default=["pdf", "txt", "md", "docx"],
         description="Supported document file types"
@@ -107,6 +109,8 @@ class Settings(BaseSettings):
     host: str = Field(default="0.0.0.0", description="Server host")
     port: int = Field(default=8000, ge=1, le=65535)
     
+    # Note: Union[str, List[str]] prevents Pydantic Settings from JSON-parsing env vars.
+    # The validator ensures this is always List[str] after initialization.
     cors_origins: Union[str, List[str]] = Field(
         default=["http://localhost:3000", "http://localhost:5173"],
         description="Allowed CORS origins"
@@ -132,20 +136,17 @@ class Settings(BaseSettings):
         path.mkdir(parents=True, exist_ok=True)
         return path
     
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", "supported_file_types", mode="before")
     @classmethod
-    def parse_cors_origins(cls, v):
-        """Parse comma-separated CORS origins."""
+    def parse_comma_separated_list(cls, v):
+        """Parse comma-separated strings into lists.
+        
+        This validator ensures fields are always List[str] after initialization,
+        even though the type hint is Union[str, List[str]] to prevent Pydantic Settings
+        from attempting JSON parsing of environment variables.
+        """
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
-        return v
-    
-    @field_validator("supported_file_types", mode="before")
-    @classmethod
-    def parse_file_types(cls, v):
-        """Parse comma-separated file types."""
-        if isinstance(v, str):
-            return [ft.strip() for ft in v.split(",")]
+            return [item.strip() for item in v.split(",") if item.strip()]
         return v
     
     # -------------------------------------------------------------------------

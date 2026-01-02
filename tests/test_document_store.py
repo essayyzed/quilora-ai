@@ -5,7 +5,7 @@ Run with: uv run pytest tests/test_document_store.py -v
 """
 
 import pytest
-from haystack import Document
+from haystack.dataclasses import Document
 from src.document_stores.store import QdrantDocumentStore
 
 
