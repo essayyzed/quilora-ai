@@ -15,7 +15,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from haystack import Document
+from haystack.dataclasses import Document
 from src.document_stores.store import QdrantDocumentStore
 
 def main():
