@@ -43,6 +43,15 @@ target-version = ["py311"]
 line-length = 100
 target-version = "py311"
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests as integration tests (require external services)",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
 [dependency-groups]
 dev = [
     "mypy>=1.19.1",
