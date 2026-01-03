@@ -46,9 +46,18 @@ class Settings(BaseSettings):
         description="Premium LLM for complex queries"
     )
     
-    llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
-    llm_max_tokens: int = Field(default=1024, ge=1, le=4096)
+    llm_temperature: float = Field(default=0.0, ge=0.0, le=2.0, description="LLM temperature (0=deterministic)")
+    llm_max_tokens: int = Field(default=1024, ge=1, le=4096, description="Max tokens per response")
     llm_streaming: bool = Field(default=True, description="Enable streaming responses")
+    llm_timeout_seconds: int = Field(default=60, ge=10, le=300, description="LLM request timeout in seconds")
+    
+    # -------------------------------------------------------------------------
+    # Retry Configuration
+    # -------------------------------------------------------------------------
+    openai_max_retries: int = Field(default=3, ge=1, le=10, description="Max retries for OpenAI API")
+    qdrant_max_retries: int = Field(default=2, ge=1, le=5, description="Max retries for Qdrant")
+    retry_min_wait_seconds: int = Field(default=1, ge=1, le=30, description="Min wait between retries")
+    retry_max_wait_seconds: int = Field(default=10, ge=1, le=60, description="Max wait between retries")
     
     # -------------------------------------------------------------------------
     # Qdrant Vector Database
@@ -119,9 +128,9 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     # Logging
     # -------------------------------------------------------------------------
-    log_level: str = Field(default="INFO", description="Logging level")
-    log_format: str = Field(default="json", description="Log format: 'json' or 'text'")
-    log_requests: bool = Field(default=False, description="Log all requests/responses")
+    log_level: str = Field(default="INFO", description="Logging level (DEBUG, INFO, WARNING, ERROR)")
+    log_format: str = Field(default="json", description="Log format: 'json' (production) or 'text' (dev)")
+    log_requests: bool = Field(default=True, description="Log all HTTP requests with timing")
     
     # -------------------------------------------------------------------------
     # Storage

@@ -1,0 +1,62 @@
+# Docker Compose configuration for Quilora AI RAG application
+# Orchestrates FastAPI backend and Qdrant vector database
+
+services:
+  # Qdrant vector database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: quilora-qdrant
+    ports:
+      - "6333:6333"  # REST API
+      - "6334:6334"  # gRPC API
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - quilora-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # FastAPI backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: quilora-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Override Qdrant connection for Docker networking
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+    volumes:
+      # Mount source for development (comment out for production)
+      - ./src:/app/src:ro
+      # Mount data directory
+      - ./data:/app/data:ro
+    networks:
+      - quilora-network
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  quilora-network:
+    driver: bridge
+
+volumes:
+  qdrant_storage:
+    driver: local

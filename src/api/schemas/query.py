@@ -5,6 +5,7 @@ class QueryRequest(BaseModel):
     query: str = Field(..., description="The user's question or query")
     top_k: Optional[int] = Field(default=None, description="Number of documents to retrieve (uses settings default if not provided)")
     filters: Optional[Dict[str, Any]] = Field(default=None, description="Metadata filters for document retrieval")
+    stream: bool = Field(default=False, description="Enable streaming response via Server-Sent Events")
 
 class DocumentResult(BaseModel):
     content: str = Field(..., description="Document content")
