@@ -3,9 +3,11 @@
 ## ADDED Requirements
 
 ### Requirement: Docker Containerization
+
 The system SHALL provide Docker containers for reproducible deployment.
 
 #### Scenario: Build backend Docker image
+
 - GIVEN the project source code
 - WHEN the Dockerfile is built
 - THEN the system SHALL create a multi-stage image
@@ -16,6 +18,7 @@ The system SHALL provide Docker containers for reproducible deployment.
 - AND set non-root user for security
 
 #### Scenario: Run backend container
+
 - GIVEN a built Docker image
 - WHEN the container is started with proper environment variables
 - THEN the system SHALL start the FastAPI application
@@ -26,9 +29,11 @@ The system SHALL provide Docker containers for reproducible deployment.
 ---
 
 ### Requirement: Docker Compose Orchestration
+
 The system SHALL provide docker-compose.yml for easy local deployment.
 
 #### Scenario: Start all services
+
 - GIVEN a docker-compose.yml file
 - WHEN `docker compose up` is executed
 - THEN the system SHALL start Qdrant container
@@ -39,6 +44,7 @@ The system SHALL provide docker-compose.yml for easy local deployment.
 - AND wait for Qdrant to be healthy before starting backend
 
 #### Scenario: Persist Qdrant data
+
 - GIVEN Docker Compose is running
 - WHEN documents are indexed
 - THEN the system SHALL store vectors in a named volume
@@ -46,6 +52,7 @@ The system SHALL provide docker-compose.yml for easy local deployment.
 - AND NOT lose data when containers are stopped
 
 #### Scenario: Environment configuration
+
 - GIVEN a .env file with configuration
 - WHEN Docker Compose starts
 - THEN the system SHALL load environment variables from .env
@@ -56,9 +63,11 @@ The system SHALL provide docker-compose.yml for easy local deployment.
 ---
 
 ### Requirement: CI/CD Pipeline
+
 The system SHALL automatically test code on every push and pull request.
 
 #### Scenario: Run tests on push
+
 - GIVEN code is pushed to the main branch
 - WHEN the GitHub Actions workflow triggers
 - THEN the system SHALL check out the code
@@ -68,6 +77,7 @@ The system SHALL automatically test code on every push and pull request.
 - AND fail the workflow if tests fail
 
 #### Scenario: Run linting checks
+
 - GIVEN code is pushed or PR is opened
 - WHEN the linting workflow triggers
 - THEN the system SHALL check code formatting with black
@@ -76,6 +86,7 @@ The system SHALL automatically test code on every push and pull request.
 - AND fail the workflow if any check fails
 
 #### Scenario: Check test coverage
+
 - GIVEN tests are executed in CI
 - WHEN pytest completes
 - THEN the system SHALL generate a coverage report
@@ -85,9 +96,11 @@ The system SHALL automatically test code on every push and pull request.
 ---
 
 ### Requirement: Production Configuration
+
 The system SHALL provide secure configuration for production deployment.
 
 #### Scenario: Environment-based configuration
+
 - GIVEN the application is deployed
 - WHEN it starts
 - THEN the system SHALL load configuration from environment variables
@@ -96,6 +109,7 @@ The system SHALL provide secure configuration for production deployment.
 - AND log configuration status (without exposing secrets)
 
 #### Scenario: Secret management
+
 - GIVEN sensitive credentials are needed
 - WHEN the application loads configuration
 - THEN the system SHALL read API keys from environment only
@@ -104,6 +118,7 @@ The system SHALL provide secure configuration for production deployment.
 - AND mask API keys in health check responses
 
 #### Scenario: CORS configuration
+
 - GIVEN the API is deployed
 - WHEN requests come from web clients
 - THEN the system SHALL enforce CORS policy
@@ -113,9 +128,11 @@ The system SHALL provide secure configuration for production deployment.
 ---
 
 ### Requirement: Logging Configuration
+
 The system SHALL provide structured JSON logging for production.
 
 #### Scenario: JSON log format
+
 - GIVEN the application is running in production
 - WHEN log events are emitted
 - THEN the system SHALL format logs as JSON
@@ -125,6 +142,7 @@ The system SHALL provide structured JSON logging for production.
 - AND include message and any metadata
 
 #### Scenario: Log rotation
+
 - GIVEN the application is running
 - WHEN logs are written to disk
 - THEN the system SHALL rotate logs daily
@@ -133,6 +151,7 @@ The system SHALL provide structured JSON logging for production.
 - AND delete logs older than 7 days
 
 #### Scenario: Log level configuration
+
 - GIVEN the application starts
 - WHEN LOG_LEVEL environment variable is set
 - THEN the system SHALL use that log level

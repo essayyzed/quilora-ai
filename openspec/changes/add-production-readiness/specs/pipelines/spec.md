@@ -3,9 +3,11 @@
 ## MODIFIED Requirements
 
 ### Requirement: Answer Generation Pipeline
+
 The system SHALL generate answers using LLM with support for both complete and streaming responses.
 
 #### Scenario: Generate complete answer ✅ IMPLEMENTED (Phase 1)
+
 - GIVEN a user query and retrieved documents
 - WHEN the retrieval pipeline is executed
 - THEN the system SHALL construct a prompt with context
@@ -13,6 +15,7 @@ The system SHALL generate answers using LLM with support for both complete and s
 - AND return the full answer text
 
 #### Scenario: Generate streaming answer 🆕 Phase 2
+
 - GIVEN a user query and retrieved documents
 - WHEN the retrieval pipeline is executed with streaming enabled
 - THEN the system SHALL construct a prompt with context
@@ -21,6 +24,7 @@ The system SHALL generate answers using LLM with support for both complete and s
 - AND signal completion when done
 
 #### Scenario: Handle streaming errors 🆕 Phase 2
+
 - GIVEN a streaming answer generation is in progress
 - WHEN an error occurs during streaming
 - THEN the system SHALL log the error with context
@@ -32,9 +36,11 @@ The system SHALL generate answers using LLM with support for both complete and s
 ## ADDED Requirements
 
 ### Requirement: Pipeline Observability
+
 The system SHALL log detailed timing and metadata for all pipeline operations.
 
 #### Scenario: Log indexing pipeline execution
+
 - GIVEN documents are being indexed
 - WHEN the indexing pipeline runs
 - THEN the system SHALL log the start time
@@ -44,6 +50,7 @@ The system SHALL log detailed timing and metadata for all pipeline operations.
 - AND log any errors with stack traces
 
 #### Scenario: Log retrieval pipeline execution
+
 - GIVEN a query is being processed
 - WHEN the retrieval pipeline runs
 - THEN the system SHALL log the query text (truncated if long)
@@ -56,9 +63,11 @@ The system SHALL log detailed timing and metadata for all pipeline operations.
 ---
 
 ### Requirement: Pipeline Error Handling
+
 The system SHALL handle pipeline failures gracefully with detailed error context.
 
 #### Scenario: Handle embedding service failure
+
 - GIVEN the OpenAI API is unavailable
 - WHEN an embedding operation is attempted
 - THEN the system SHALL retry with exponential backoff (up to 3 times)
@@ -67,6 +76,7 @@ The system SHALL handle pipeline failures gracefully with detailed error context
 - AND NOT expose API keys in error messages
 
 #### Scenario: Handle Qdrant connection failure
+
 - GIVEN Qdrant is temporarily unavailable
 - WHEN a write or search operation is attempted
 - THEN the system SHALL retry the operation (up to 2 times)
@@ -74,6 +84,7 @@ The system SHALL handle pipeline failures gracefully with detailed error context
 - AND raise a descriptive error if all retries fail
 
 #### Scenario: Handle LLM generation timeout
+
 - GIVEN an LLM generation takes too long
 - WHEN the generation exceeds 60 seconds
 - THEN the system SHALL cancel the generation

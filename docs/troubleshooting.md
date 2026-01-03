@@ -3,6 +3,7 @@
 This guide helps diagnose and resolve common issues with Quilora AI.
 
 ## Table of Contents
+
 1. [Server Won't Start](#server-wont-start)
 2. [Qdrant Connection Issues](#qdrant-connection-issues)
 3. [OpenAI API Errors](#openai-api-errors)
@@ -17,11 +18,13 @@ This guide helps diagnose and resolve common issues with Quilora AI.
 ## Server Won't Start
 
 ### Symptom
+
 ```
 ModuleNotFoundError: No module named 'xyz'
 ```
 
 **Solution**:
+
 ```bash
 # Reinstall dependencies
 uv sync
@@ -31,11 +34,13 @@ pip install -r requirements.txt
 ```
 
 ### Symptom
+
 ```
 Address already in use: Port 8000
 ```
 
 **Solution**:
+
 ```bash
 # Find and kill process using port 8000
 lsof -ti:8000 | xargs kill -9
@@ -45,11 +50,13 @@ uvicorn src.api.main:app --port 8001
 ```
 
 ### Symptom
+
 ```
 OPENAI_API_KEY not set
 ```
 
 **Solution**:
+
 1. Create `.env` file in project root
 2. Add: `OPENAI_API_KEY=sk-...`
 3. Verify: `cat .env | grep OPENAI`
@@ -59,11 +66,13 @@ OPENAI_API_KEY not set
 ## Qdrant Connection Issues
 
 ### Symptom
+
 ```
 ConnectionError: Cannot connect to Qdrant at http://localhost:6333
 ```
 
 **Diagnosis**:
+
 ```bash
 # Check if Qdrant is running
 curl http://localhost:6333/healthz
@@ -72,6 +81,7 @@ curl http://localhost:6333/healthz
 ```
 
 **Solution 1: Start Qdrant**
+
 ```bash
 docker run -d -p 6333:6333 -p 6334:6334 \
   -v $(pwd)/qdrant_storage:/qdrant/storage \
@@ -80,11 +90,13 @@ docker run -d -p 6333:6333 -p 6334:6334 \
 ```
 
 **Solution 2: Use Docker Compose**
+
 ```bash
 docker compose up -d qdrant
 ```
 
 **Solution 3: Update QDRANT_URL in .env**
+
 ```
 QDRANT_URL=http://localhost:6333  # Local
 # or
@@ -92,12 +104,14 @@ QDRANT_URL=http://qdrant:6333     # Docker Compose
 ```
 
 ### Symptom
+
 ```
 Collection 'documents' not found
 ```
 
 **Solution**:
 The collection is created automatically on first document upload. If you need to recreate:
+
 ```bash
 # Delete collection via API
 curl -X DELETE http://localhost:6333/collections/documents
@@ -112,11 +126,13 @@ docker run ...
 ## OpenAI API Errors
 
 ### Symptom
+
 ```
 401 Unauthorized: Invalid API Key
 ```
 
 **Solution**:
+
 1. Verify API key is correct: https://platform.openai.com/api-keys
 2. Check `.env` file has no extra spaces:
    ```
@@ -126,22 +142,26 @@ docker run ...
 3. Restart server after updating `.env`
 
 ### Symptom
+
 ```
 429 Rate Limit Exceeded
 ```
 
 **Solution**:
+
 - Check your OpenAI usage: https://platform.openai.com/usage
 - Upgrade to paid tier if on free tier
 - Implement request queueing (Phase 3)
 - Our retry logic will handle transient rate limits
 
 ### Symptom
+
 ```
 Timeout: OpenAI request timed out after 60s
 ```
 
 **Diagnosis**:
+
 - Check OpenAI status: https://status.openai.com/
 - Review logs for retry attempts:
   ```bash
@@ -149,6 +169,7 @@ Timeout: OpenAI request timed out after 60s
   ```
 
 **Solution**:
+
 - Wait for OpenAI service restoration
 - Reduce `LLM_MAX_TOKENS` in `.env` to speed up generation
 - Our retry logic (3 attempts with exponential backoff) should handle transient issues
@@ -160,12 +181,14 @@ Timeout: OpenAI request timed out after 60s
 ### Symptom: Embedding takes >1s
 
 **Diagnosis**:
+
 ```bash
 # Check logs for timing
 docker logs quilora-ai-api-1 | grep "embedding_ms"
 ```
 
 **Solution**:
+
 - Verify OpenAI API is healthy
 - Check network latency: `ping api.openai.com`
 - Consider caching embeddings for repeated queries (future work)
@@ -173,6 +196,7 @@ docker logs quilora-ai-api-1 | grep "embedding_ms"
 ### Symptom: Search takes >500ms
 
 **Diagnosis**:
+
 ```bash
 # Check Qdrant performance
 curl http://localhost:6333/collections/documents
@@ -181,6 +205,7 @@ curl http://localhost:6333/collections/documents
 ```
 
 **Solution**:
+
 - Increase `min_similarity_score` in `.env` (default 0.7)
 - Reduce `retrieval_top_k` (default 5)
 - Optimize Qdrant config (advanced)
@@ -188,6 +213,7 @@ curl http://localhost:6333/collections/documents
 ### Symptom: Generation takes >30s
 
 **Solution**:
+
 - Reduce `LLM_MAX_TOKENS` in `.env` (default 1024)
 - Use streaming mode for better UX: `?stream=true`
 - Check OpenAI model status
@@ -197,6 +223,7 @@ curl http://localhost:6333/collections/documents
 ## Empty Search Results
 
 ### Symptom
+
 ```json
 {
   "documents": [],
@@ -205,6 +232,7 @@ curl http://localhost:6333/collections/documents
 ```
 
 **Diagnosis**:
+
 1. Check if documents exist:
    ```bash
    curl http://localhost:8000/documents
@@ -217,6 +245,7 @@ curl http://localhost:6333/collections/documents
 3. Review query and document content relevance
 
 **Solution**:
+
 1. Lower similarity threshold:
    ```
    MIN_SIMILARITY_SCORE=0.5  # In .env
@@ -232,6 +261,7 @@ curl http://localhost:6333/collections/documents
 ### Symptom: Streaming not working, getting full response
 
 **Diagnosis**:
+
 ```bash
 # Check request includes stream parameter
 curl -N http://localhost:8000/query?stream=true \
@@ -240,6 +270,7 @@ curl -N http://localhost:8000/query?stream=true \
 ```
 
 **Expected Output**:
+
 ```
 data: {"type":"documents",...}
 
@@ -251,6 +282,7 @@ data: {"type":"done",...}
 ```
 
 **Solution**:
+
 - Ensure `stream=true` query parameter
 - Use `-N` flag with curl (no buffering)
 - In browser, use EventSource API:
@@ -262,12 +294,14 @@ data: {"type":"done",...}
 ### Symptom: Stream hangs or times out
 
 **Diagnosis**:
+
 ```bash
 # Check server logs for errors
 docker logs -f quilora-ai-api-1
 ```
 
 **Solution**:
+
 - Verify OpenAI API is responding
 - Check for exceptions in logs
 - Reduce `LLM_MAX_TOKENS` to speed up generation
@@ -279,16 +313,19 @@ docker logs -f quilora-ai-api-1
 ### Symptom: Container exits immediately
 
 **Diagnosis**:
+
 ```bash
 docker logs quilora-ai-api-1
 ```
 
 **Common Causes**:
+
 1. Missing environment variables
 2. Build errors
 3. Port conflicts
 
 **Solution**:
+
 ```bash
 # Rebuild with no cache
 docker compose build --no-cache
@@ -300,12 +337,14 @@ docker compose build --no-cache
 ### Symptom: `docker compose up` fails
 
 **Diagnosis**:
+
 ```bash
 docker compose config  # Validate syntax
 docker compose ps      # Check container status
 ```
 
 **Solution**:
+
 ```bash
 # Clean up and restart
 docker compose down -v
@@ -315,6 +354,7 @@ docker compose up --build
 ### Symptom: Health check failing
 
 **Diagnosis**:
+
 ```bash
 # Check health status
 docker compose ps
@@ -324,6 +364,7 @@ docker inspect quilora-ai-api-1 | grep -A 10 Health
 ```
 
 **Solution**:
+
 - Ensure Qdrant is running first (depends_on)
 - Check `/health` endpoint manually:
   ```bash
@@ -338,6 +379,7 @@ docker inspect quilora-ai-api-1 | grep -A 10 Health
 ### Symptom: Tests failing with "Qdrant connection refused"
 
 **Solution**:
+
 ```bash
 # Start Qdrant for tests
 docker run -d -p 6333:6333 qdrant/qdrant
@@ -353,6 +395,7 @@ uv run pytest
 ### Symptom: "OpenAI API key not set" in tests
 
 **Solution**:
+
 1. Create `.env.test` with test API key
 2. Or set environment variable:
    ```bash
@@ -363,6 +406,7 @@ uv run pytest
 ### Symptom: Import errors in tests
 
 **Solution**:
+
 ```bash
 # Ensure package is installed in editable mode
 uv pip install -e .
@@ -415,6 +459,7 @@ curl http://localhost:8000/health
 ### GitHub Issues
 
 If none of these solutions work:
+
 1. Gather logs: `docker logs quilora-ai-api-1 > error.log`
 2. Note your environment:
    - OS and version

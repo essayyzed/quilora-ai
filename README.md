@@ -123,25 +123,31 @@ You'll need the following API keys:
 5. **Run the application:**
 
    **Option A: Local Development**
+
    ```bash
    .venv/bin/python3 -m uvicorn src.api.main:app --reload
    ```
 
    **Option B: Docker Compose (Recommended)**
+
    ```bash
    🧪 Testing
+   ```
 
 Run all tests:
+
 ```bash
 uv run pytest -v
 ```
 
 Run with coverage:
+
 ```bash
 uv run pytest --cov=src --cov-report=term
 ```
 
 Run only integration tests (requires Qdrant):
+
 ```bash
 uv run pytest -m integration
 ```
@@ -165,6 +171,7 @@ docker compose up --build
 ```
 
 Services:
+
 - **API**: http://localhost:8000
 - **Qdrant**: http://localhost:6333
 
@@ -177,6 +184,7 @@ The application includes structured logging with request tracking:
 - **Health Checks**: `/health` endpoint monitors Qdrant connectivity
 
 Configure logging level:
+
 ```bash
 export LOG_LEVEL=DEBUG  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 ```
@@ -186,12 +194,14 @@ export LOG_LEVEL=DEBUG  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 ### Code Quality
 
 Format code:
+
 ```bash
 uv run black src/ tests/
 uv run isort src/ tests/
 ```
 
 Lint code:
+
 ```bash
 uv run ruff check src/ tests/
 ```
@@ -199,13 +209,17 @@ uv run ruff check src/ tests/
 ### CI/CD
 
 The project uses GitHub Actions for:
+
 - **Automated Testing**: Runs on every push and PR
 - **Linting**: Black, isort, ruff checks
 - **Coverage Reporting**: Uploads to Codecov
+
 ### Health & Status
+
 - `GET /health` - Health check with Qdrant connectivity status
 
 ### Document Management
+
 - `POST /documents` - Upload document from JSON content
 - `POST /documents/upload` - Upload document file (TXT, MD)
 - `GET /documents` - List all documents (paginated)
@@ -213,6 +227,7 @@ The project uses GitHub Actions for:
 - `DELETE /documents?all=true` - Delete all documents
 
 ### Query & RAG
+
 - `POST /query` - Query documents with AI-generated answers
   - `stream=false` (default): Complete JSON response
   - `stream=true`: Server-Sent Events streaming
