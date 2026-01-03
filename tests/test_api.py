@@ -35,8 +35,8 @@ def check_prerequisites():
     # Check Qdrant connection
     try:
         from qdrant_client import QdrantClient
-        client = QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
-        client.get_collections()
+        qdrant_client = QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
+        qdrant_client.get_collections()
     except Exception as e:
         issues.append(f"Qdrant not accessible: {e}")
     

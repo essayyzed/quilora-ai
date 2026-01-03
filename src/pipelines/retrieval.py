@@ -34,57 +34,55 @@ Provide a clear, accurate answer based solely on the context above. If the conte
 Answer:"""
 
 
-def create_retrieval_pipeline() -> Pipeline:
+# Module-level cached instances (lazy-initialized)
+# Avoids expensive object recreation (especially Qdrant connections) on every query
+_cached_embedder = None
+_cached_document_store = None
+
+
+def get_text_embedder() -> OpenAITextEmbedder:
     """
-    Create a Haystack 2.x RAG retrieval pipeline.
-    
-    Pipeline flow:
-    1. OpenAITextEmbedder - Creates embedding for the query
-    2. Custom Qdrant search - Retrieves relevant documents
-    3. PromptBuilder - Builds prompt with context
-    4. OpenAIGenerator - Generates answer using LLM
+    Get or create cached OpenAI text embedder.
     
     Returns:
-        Pipeline: Configured retrieval pipeline
+        OpenAITextEmbedder: Singleton embedder instance
     """
-    # Initialize document store
-    document_store = QdrantDocumentStore(
-        collection_name=settings.qdrant_collection_name,
-        embedding_dimension=settings.embedding_dimension
-    )
+    global _cached_embedder
+    if _cached_embedder is None:
+        _cached_embedder = OpenAITextEmbedder(
+            api_key=Secret.from_token(settings.openai_api_key),
+            model=settings.embedding_model
+        )
+    return _cached_embedder
+
+
+def get_document_store() -> QdrantDocumentStore:
+    """
+    Get or create cached Qdrant document store.
     
-    # Initialize pipeline components
-    text_embedder = OpenAITextEmbedder(
-        api_key=Secret.from_token(settings.openai_api_key),
-        model=settings.embedding_model
-    )
+    Reuses connection to avoid expensive reconnection overhead.
     
-    # Create a custom retriever component using our document store
-    from haystack.components.retrievers import InMemoryEmbeddingRetriever
-    # Note: We'll need to create a custom retriever for Qdrant
-    # For now, we'll use a simpler approach
+    Returns:
+        QdrantDocumentStore: Singleton document store instance
+    """
+    global _cached_document_store
+    if _cached_document_store is None:
+        _cached_document_store = QdrantDocumentStore(
+            collection_name=settings.qdrant_collection_name,
+            embedding_dimension=settings.embedding_dimension
+        )
+    return _cached_document_store
+
+
+def _reset_cache():
+    """
+    Reset cached instances.
     
-    prompt_builder = PromptBuilder(template=RAG_PROMPT_TEMPLATE)
-    
-    llm = OpenAIGenerator(
-        api_key=Secret.from_token(settings.openai_api_key),
-        model=settings.fallback_llm_provider.split(":")[1] if ":" in settings.fallback_llm_provider else "gpt-4o-mini",
-        generation_kwargs={
-            "temperature": settings.llm_temperature,
-            "max_tokens": settings.llm_max_tokens
-        }
-    )
-    
-    # Create pipeline
-    pipeline = Pipeline()
-    pipeline.add_component("text_embedder", text_embedder)
-    pipeline.add_component("prompt_builder", prompt_builder)
-    pipeline.add_component("llm", llm)
-    
-    # Connect components
-    pipeline.connect("prompt_builder", "llm")
-    
-    return pipeline, document_store
+    Useful for testing or when configuration changes.
+    """
+    global _cached_embedder, _cached_document_store
+    _cached_embedder = None
+    _cached_document_store = None
 
 
 def retrieve_documents(query: str, top_k: int = None) -> Dict[str, Any]:
@@ -101,19 +99,13 @@ def retrieve_documents(query: str, top_k: int = None) -> Dict[str, Any]:
     if top_k is None:
         top_k = settings.retrieval_top_k
     
-    # Step 1: Create query embedding using standalone embedder
-    text_embedder = OpenAITextEmbedder(
-        api_key=Secret.from_token(settings.openai_api_key),
-        model=settings.embedding_model
-    )
+    # Step 1: Create query embedding using cached embedder
+    text_embedder = get_text_embedder()
     embedding_result = text_embedder.run(text=query)
     query_embedding = embedding_result["embedding"]
     
-    # Step 2: Search Qdrant for relevant documents
-    document_store = QdrantDocumentStore(
-        collection_name=settings.qdrant_collection_name,
-        embedding_dimension=settings.embedding_dimension
-    )
+    # Step 2: Search Qdrant for relevant documents using cached document store
+    document_store = get_document_store()
     documents = document_store.search(
         query_embedding=query_embedding,
         top_k=top_k,

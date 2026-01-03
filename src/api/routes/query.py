@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException
+import logging
 from src.api.schemas.query import QueryRequest, QueryResponse
 from src.pipelines.retrieval import retrieve_documents
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/query", response_model=QueryResponse)
@@ -21,7 +23,7 @@ async def query_documents(query_request: QueryRequest):
     try:
         results = retrieve_documents(
             query=query_request.query,
-            top_k=query_request.top_k if hasattr(query_request, 'top_k') else None
+            top_k=query_request.top_k
         )
         
         return QueryResponse(
@@ -33,5 +35,7 @@ async def query_documents(query_request: QueryRequest):
         # Re-raise HTTP exceptions (like 400 errors)
         raise
     except Exception as e:
-        # Convert other exceptions to 500 errors
-        raise HTTPException(status_code=500, detail=str(e))
+        # Log the full exception with stack trace for debugging
+        logger.exception("Error processing query request")
+        # Return generic error to client (don't leak internals)
+        raise HTTPException(status_code=500, detail="Internal server error")

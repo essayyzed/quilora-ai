@@ -20,7 +20,11 @@ def document_store():
     # Cleanup after test
     try:
         store.delete_collection()
-    except:
+    except Exception as e:
+        # Re-raise system exceptions
+        if isinstance(e, (KeyboardInterrupt, SystemExit)):
+            raise
+        # Ignore other errors (e.g., collection doesn't exist)
         pass
 
 
@@ -92,9 +96,10 @@ def test_delete_documents(document_store):
     
     # Delete one document
     deleted = document_store.delete_documents(document_ids=["doc1"])
-    assert deleted == 1
+    # ID-based deletes return -1 (unknown count due to idempotent operation)
+    assert deleted == -1
     
-    # Verify count
+    # Verify count (actual way to confirm deletion)
     count = document_store.count_documents()
     assert count == 2
 

@@ -8,6 +8,7 @@ Integrates with Haystack 2.x for RAG pipelines.
 from typing import List, Optional, Dict, Any
 import logging
 import hashlib
+import threading
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
@@ -102,6 +103,7 @@ class QdrantDocumentStore:
         self,
         documents: List[Document],
         batch_size: int = 100,
+        policy: Optional[Any] = None,
     ) -> int:
         """
         Write documents with embeddings to Qdrant.
@@ -109,6 +111,7 @@ class QdrantDocumentStore:
         Args:
             documents: List of Haystack Document objects with embeddings
             batch_size: Number of documents to write per batch
+            policy: Duplicate handling policy (currently ignored, uses overwrite behavior)
             
         Returns:
             Number of documents written
@@ -131,10 +134,13 @@ class QdrantDocumentStore:
             point_id = f"{md5_hash[:8]}-{md5_hash[8:12]}-{md5_hash[12:16]}-{md5_hash[16:20]}-{md5_hash[20:]}"
             
             # Prepare metadata (exclude embedding from payload)
+            # Filter out reserved keys from meta to prevent overwriting
+            reserved_keys = {"content", "doc_id", "embedding"}
+            filtered_meta = {k: v for k, v in doc.meta.items() if k not in reserved_keys}
             payload = {
                 "content": doc.content,
                 "doc_id": str(doc.id),  # Original ID
-                **doc.meta,
+                **filtered_meta,
             }
             
             # Create Qdrant point
@@ -262,8 +268,8 @@ class QdrantDocumentStore:
                     collection_name=self.collection_name,
                     points_selector=point_ids,
                 )
-                logger.info(f"Deleted {len(document_ids)} documents")
-                return len(document_ids)
+                logger.info(f"Requested deletion of {len(document_ids)} documents by ID; Qdrant delete is idempotent and may not reflect actual deletions")
+                return -1  # Qdrant doesn't return count for ID-based deletion
             except Exception as e:
                 logger.error(f"Failed to delete documents: {e}")
                 raise
@@ -314,6 +320,15 @@ class QdrantDocumentStore:
 
 
 # Global document store instance
+_document_store: Optional[QdrantDocumentStore] = None
+_store_lock = threading.Lock()
+
 def get_document_store() -> QdrantDocumentStore:
     """Get or create the global document store instance."""
-    return QdrantDocumentStore()
+    global _document_store
+    if _document_store is None:
+        with _store_lock:
+            # Double-check pattern to avoid race condition
+            if _document_store is None:
+                _document_store = QdrantDocumentStore()
+    return _document_store

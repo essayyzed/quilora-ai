@@ -138,13 +138,21 @@ class Settings(BaseSettings):
     
     @field_validator("cors_origins", "supported_file_types", mode="before")
     @classmethod
-    def parse_comma_separated_list(cls, v):
+    def parse_comma_separated_list(cls, v, info):
         """Parse comma-separated strings into lists.
         
         This validator ensures fields are always List[str] after initialization,
         even though the type hint is Union[str, List[str]] to prevent Pydantic Settings
         from attempting JSON parsing of environment variables.
         """
+        # Explicitly reject None or empty string
+        if v is None or v == "":
+            field_name = info.field_name
+            raise ValueError(
+                f"{field_name} cannot be null or empty. "
+                f"Expected a comma-separated string (e.g., 'item1,item2') or a list of strings."
+            )
+        
         if isinstance(v, str):
             return [item.strip() for item in v.split(",") if item.strip()]
         return v

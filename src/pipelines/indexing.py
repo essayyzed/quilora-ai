@@ -76,7 +76,3 @@ def index_documents(documents: List[Document]) -> dict:
     pipeline = create_indexing_pipeline()
     result = pipeline.run({"splitter": {"documents": documents}})
     return result
-
-def index_documents(documents):
-    pipeline = create_indexing_pipeline()
-    pipeline.run(documents=documents)
