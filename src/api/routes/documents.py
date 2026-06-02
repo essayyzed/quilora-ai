@@ -20,13 +20,11 @@ from src.api.schemas.documents import (
 )
 from src.document_stores.store import get_document_store
 from src.pipelines.indexing import index_documents
+from src.document_processing.extractor import extract_text, SUPPORTED_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
-
-# Supported file extensions
-SUPPORTED_EXTENSIONS = {".txt", ".md"}
 
 
 @router.post(
@@ -84,70 +82,55 @@ async def create_document(request: DocumentCreateRequest) -> DocumentUploadRespo
     response_model=DocumentUploadResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Upload Document File",
-    description="Upload and index a document file (TXT, MD).",
+    description=(
+        "Upload and index a document file. "
+        "Supported: TXT, MD, RST, PDF, DOCX, XLSX, PPTX, CSV, JSON, YAML, HTML."
+    ),
 )
 async def upload_document(
     file: UploadFile = File(..., description="Document file to upload"),
 ) -> DocumentUploadResponse:
-    """
-    Upload a file and index its content.
-    
-    Supported formats: .txt, .md
-    """
-    # Validate file extension
     filename = file.filename or "unknown"
-    extension = "." + filename.split(".")[-1].lower() if "." in filename else ""
-    
+    extension = ("." + filename.rsplit(".", 1)[-1].lower()) if "." in filename else ""
+
     if extension not in SUPPORTED_EXTENSIONS:
+        supported = ", ".join(sorted(SUPPORTED_EXTENSIONS))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file type. Supported formats: {', '.join(SUPPORTED_EXTENSIONS)}",
+            detail=f"Unsupported file type '{extension}'. Supported: {supported}",
         )
-    
+
     try:
-        # Read file content
-        content = await file.read()
-        text_content = content.decode("utf-8")
-        
+        raw = await file.read()
+        text_content = extract_text(raw, extension)
+
         if not text_content.strip():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Content cannot be empty",
+                detail="File contains no extractable text",
             )
-        
-        # Generate document ID
+
         doc_id = str(uuid.uuid4())
-        
-        # Create Haystack Document with file metadata
         doc = Document(
             id=doc_id,
             content=text_content,
-            meta={
-                "filename": filename,
-                "source": "file_upload",
-            },
+            meta={"filename": filename, "source": "file_upload"},
         )
-        
-        # Index the document - returns dict with pipeline results
+
         result = index_documents([doc])
-        
-        # Extract chunk count from writer result
         chunk_count = result.get("writer", {}).get("documents_written", 0)
-        
+
         return DocumentUploadResponse(
             document_id=doc_id,
             chunk_count=chunk_count,
             message=f"File '{filename}' indexed successfully with {chunk_count} chunks",
         )
-        
+
     except HTTPException:
         raise
-    except UnicodeDecodeError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File must be valid UTF-8 text",
-        )
-    except Exception as e:
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception:
         logger.exception("Failed to upload document")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
