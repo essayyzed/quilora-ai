@@ -5,6 +5,7 @@ import os
 from src.api.routes import query
 from src.api.routes import health
 from src.api.routes import documents
+from src.api.routes import config
 from src.middleware.logging import LoggingMiddleware, configure_logging
 
 # Configure logging on startup
@@ -35,6 +36,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(query.router)
 app.include_router(documents.router)
+app.include_router(config.router)
 
 
 @app.get("/", tags=["Root"])

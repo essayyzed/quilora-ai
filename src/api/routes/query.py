@@ -15,10 +15,18 @@ async def generate_sse_stream(query: str, top_k: int, provider_override: Optiona
     try:
         for chunk in retrieve_documents_streaming(query=query, top_k=top_k, provider_override=provider_override):
             if chunk["type"] == "documents":
-                # Send document metadata first
+                docs = chunk["data"]
                 data = {
                     "type": "documents",
-                    "count": len(chunk["data"]),
+                    "count": len(docs),
+                    "documents": [
+                        {
+                            "metadata": d.meta,
+                            "content": d.content or "",
+                            "score": round(d.score, 4) if d.score is not None else None,
+                        }
+                        for d in docs
+                    ],
                     "metadata": chunk["metadata"]
                 }
                 yield f"data: {json.dumps(data)}\n\n"

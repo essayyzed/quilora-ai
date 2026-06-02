@@ -33,16 +33,20 @@ class ExternalServiceError(Exception):
 
 
 # RAG prompt template
-RAG_PROMPT_TEMPLATE = """You are a helpful AI assistant. Answer the question based on the provided context.
+RAG_PROMPT_TEMPLATE = """You are a helpful AI assistant. Answer the question using ONLY the numbered sources below.
 
-Context:
+Sources:
 {% for doc in documents %}
 {{ doc.content }}
 {% endfor %}
 
 Question: {{ question }}
 
-Provide a clear, accurate answer based solely on the context above. If the context doesn't contain enough information, say so.
+Rules:
+- Cite every claim with inline markers like [1], [2], [3] matching the source numbers above.
+- You may cite multiple sources for one claim: [1][3].
+- If the sources do not contain enough information to answer, say so clearly.
+- Do not invent facts outside the sources.
 
 Answer:"""
 
@@ -195,7 +199,7 @@ def retrieve_documents(
         client = registry.client
         
         # Build prompt with documents
-        context = "\n\n".join([f"Document {i+1}:\n{doc.content}" for i, doc in enumerate(documents)])
+        context = "\n\n".join([f"[{i+1}] {doc.content}" for i, doc in enumerate(documents)])
         prompt = RAG_PROMPT_TEMPLATE.replace("{% for doc in documents %}\n{{ doc.content }}\n{% endfor %}", context)
         prompt = prompt.replace("{{ question }}", query)
         
@@ -361,7 +365,7 @@ def retrieve_documents_streaming(
         
         # Format documents into context string
         context = "\n\n".join([
-            f"Document {i+1}:\n{doc.content}" 
+            f"[{i+1}] {doc.content}"
             for i, doc in enumerate(documents)
         ])
         

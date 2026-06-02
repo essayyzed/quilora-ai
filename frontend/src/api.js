@@ -52,11 +52,21 @@ export async function deleteAllDocuments() {
  * Async generator that yields parsed SSE event objects.
  * Each yielded object: { type, content?, count?, metadata? }
  */
-export async function* streamQuery(query) {
+export async function getConfig() {
+  const res = await fetch(`${BASE}/config`)
+  if (!res.ok) throw new Error(`Config fetch failed: ${res.status}`)
+  return res.json()
+}
+
+export async function* streamQuery(query, options = {}) {
+  const { topK, provider } = options
+  const body = { query, stream: true }
+  if (topK) body.top_k = topK
+  if (provider) body.provider = provider
   const res = await fetch(`${BASE}/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, stream: true }),
+    body: JSON.stringify(body),
   })
 
   if (!res.ok) {
