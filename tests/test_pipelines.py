@@ -13,7 +13,8 @@ def test_index_documents():
     # Response is a dict with pipeline results
     assert isinstance(index_response, dict)
 
-def test_retrieve_documents():
+def test_retrieve_documents(mock_llm_components, mock_embedder, mock_document_store):
+    """Test retrieve_documents with mocked LLM and dependencies."""
     query = "Test document"
     results = retrieve_documents(query)
     assert results is not None
@@ -21,3 +22,8 @@ def test_retrieve_documents():
     assert "answer" in results
     assert "documents" in results
     assert "metadata" in results
+    
+    # Verify new Phase 3 metadata fields
+    assert "provider_used" in results["metadata"]
+    assert "provider_fallback" in results["metadata"]
+    assert results["metadata"]["provider_used"] == "openai"  # Default from mock

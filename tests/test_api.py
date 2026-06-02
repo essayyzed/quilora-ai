@@ -44,7 +44,7 @@ def check_prerequisites():
         pytest.skip(f"Prerequisites not met: {'; '.join(issues)}")
 
 
-def test_query_endpoint(check_prerequisites):
+def test_query_endpoint(check_prerequisites, mock_llm_components, mock_embedder, mock_document_store):
     """Test successful query with valid input."""
     response = client.post("/query", json={"query": "What is RAG?"})
     
@@ -56,6 +56,10 @@ def test_query_endpoint(check_prerequisites):
     assert "documents" in data, "Response should contain 'documents' field"
     assert "metadata" in data, "Response should contain 'metadata' field"
     assert isinstance(data["documents"], list), "Documents should be a list"
+    
+    # Verify provider metadata is included
+    assert "provider_used" in data["metadata"], "Should include provider_used in metadata"
+    assert "provider_fallback" in data["metadata"], "Should include provider_fallback in metadata"
 
 
 def test_invalid_query_endpoint(check_prerequisites):
@@ -65,7 +69,7 @@ def test_invalid_query_endpoint(check_prerequisites):
     assert "detail" in response.json(), "Error response should contain 'detail' field"
 
 
-def test_query_with_top_k(check_prerequisites):
+def test_query_with_top_k(check_prerequisites, mock_llm_components, mock_embedder, mock_document_store):
     """Test query with custom top_k parameter."""
     response = client.post("/query", json={"query": "What is RAG?", "top_k": 3})
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"
@@ -76,7 +80,7 @@ def test_query_with_top_k(check_prerequisites):
         assert len(data["documents"]) <= 3, "Should return at most 3 documents"
 
 
-def test_query_response_structure(check_prerequisites):
+def test_query_response_structure(check_prerequisites, mock_llm_components, mock_embedder, mock_document_store):
     """Test that response has correct structure."""
     response = client.post("/query", json={"query": "Test query"})
     assert response.status_code == 200

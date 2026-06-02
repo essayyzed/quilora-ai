@@ -1,18 +1,21 @@
 # Implementation Tasks: Add Multi-LLM Support
 
 ## Status
+
 - **Phase**: Phase 3
 - **Status**: Not Started
 - **Priority**: High
 - **Estimated Effort**: 4-6 hours
 
 ## Prerequisites
+
 - [ ] Review aisuite documentation: https://github.com/andrewyng/aisuite
 - [ ] Confirm all API keys available (OpenAI, Anthropic, Groq)
 - [ ] Review Phase 2 retry/timeout logic for compatibility
 - [ ] Archive Phase 2 changes if not already done
 
 ## 1. Setup and Dependencies
+
 - [ ] Add `aisuite>=0.1.3` to requirements.txt
 - [ ] Install aisuite: `uv pip install aisuite`
 - [ ] Verify aisuite imports work
@@ -20,6 +23,7 @@
 - [ ] Create `src/llm/__init__.py`
 
 ## 2. Provider Registry Implementation
+
 - [ ] Create `src/llm/provider.py`
 - [ ] Implement `LLMProviderRegistry` class
 - [ ] Add method to initialize aisuite clients for all providers
@@ -30,6 +34,7 @@
 - [ ] Write unit tests for provider registry (5+ scenarios)
 
 ## 3. Query Complexity Classifier
+
 - [ ] Create `src/llm/classifier.py`
 - [ ] Implement `QueryComplexityClassifier` class
 - [ ] Add word count analysis
@@ -40,6 +45,7 @@
 - [ ] Write unit tests for classifier (10+ test cases)
 
 ## 4. Provider Router
+
 - [ ] Create `src/llm/router.py`
 - [ ] Implement `ProviderRouter` class
 - [ ] Add strategy-based routing (speed/balanced/quality)
@@ -51,6 +57,7 @@
 - [ ] Write unit tests for router (15+ scenarios)
 
 ## 5. Configuration Updates
+
 - [ ] Update `src/config/settings.py`
 - [ ] Add `llm_provider_strategy: str` (speed/balanced/quality)
 - [ ] Add `llm_complexity_simple_max_words: int` (default 50)
@@ -61,6 +68,7 @@
 - [ ] Document configuration options in README
 
 ## 6. Pipeline Integration
+
 - [ ] Update `src/pipelines/retrieval.py`
 - [ ] Replace OpenAI imports with aisuite
 - [ ] Add complexity classification step
@@ -74,6 +82,7 @@
 - [ ] Add provider information to streaming metadata
 
 ## 7. API Schema Updates
+
 - [ ] Update `src/api/schemas/query.py`
 - [ ] Add optional `provider: str` field to QueryRequest
 - [ ] Add validator for provider field (openai|anthropic|groq|null)
@@ -82,6 +91,7 @@
 - [ ] Update API documentation/docstrings
 
 ## 8. Health Endpoint Enhancement
+
 - [ ] Update `src/api/routes/health.py`
 - [ ] Add provider status to health check response
 - [ ] Show available providers list
@@ -90,6 +100,7 @@
 - [ ] Test health endpoint with multiple providers
 
 ## 9. Testing
+
 - [ ] Write `tests/test_llm_provider.py` (provider registry tests)
 - [ ] Write `tests/test_llm_classifier.py` (classifier tests)
 - [ ] Write `tests/test_llm_router.py` (router tests)
@@ -103,6 +114,7 @@
 - [ ] Aim for 80%+ code coverage on new code
 
 ## 10. Documentation
+
 - [ ] Update `docs/architecture.md`
 - [ ] Add multi-LLM architecture diagram
 - [ ] Document provider selection logic
@@ -116,6 +128,7 @@
 - [ ] Create `docs/PHASE3_COMPLETION.md` (after all tasks done)
 
 ## 11. Performance Validation
+
 - [ ] Benchmark query time with each provider
 - [ ] Verify fallback doesn't add excessive latency
 - [ ] Test streaming latency across providers
@@ -123,6 +136,7 @@
 - [ ] Measure cost savings with smart routing
 
 ## 12. Final Validation
+
 - [ ] Run full test suite: `uv run pytest`
 - [ ] Verify all 29+ existing tests pass
 - [ ] Run with all providers enabled
@@ -135,6 +149,7 @@
 - [ ] Validate OpenSpec: `openspec validate add-multi-llm-support --strict`
 
 ## Post-Implementation
+
 - [ ] Update docker-compose.yml if needed
 - [ ] Update CI/CD workflows if needed
 - [ ] Create git commit with detailed message
@@ -142,6 +157,7 @@
 - [ ] Update main specs if capabilities evolved
 
 ## Notes
+
 - Maintain backward compatibility - existing deployments should work without changes
 - Provider override is optional feature for testing/debugging
 - Complexity classifier can start simple and improve iteratively
@@ -149,9 +165,11 @@
 - All provider operations should have timeouts (60s from Phase 2)
 
 ## Blockers
+
 None identified. All dependencies available.
 
 ## Success Metrics
+
 - All tests passing (target: 44+ tests, 29 existing + 15 new)
 - Cost reduction: 30-50% through smart routing
 - No API breaking changes

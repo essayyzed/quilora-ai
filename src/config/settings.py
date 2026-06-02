@@ -42,7 +42,7 @@ class Settings(BaseSettings):
         description="Fallback LLM if primary fails"
     )
     premium_llm_provider: str = Field(
-        default="anthropic:claude-3-5-sonnet-20240620",
+        default="anthropic:claude-sonnet-4-5",
         description="Premium LLM for complex queries"
     )
     
@@ -50,6 +50,30 @@ class Settings(BaseSettings):
     llm_max_tokens: int = Field(default=1024, ge=1, le=4096, description="Max tokens per response")
     llm_streaming: bool = Field(default=True, description="Enable streaming responses")
     llm_timeout_seconds: int = Field(default=60, ge=10, le=300, description="LLM request timeout in seconds")
+    
+    # -------------------------------------------------------------------------
+    # Multi-Provider Configuration (Phase 3)
+    # -------------------------------------------------------------------------
+    llm_provider_strategy: str = Field(
+        default="balanced",
+        description="Provider selection strategy: 'speed', 'balanced', or 'quality'"
+    )
+    llm_complexity_simple_max_words: int = Field(
+        default=50,
+        ge=10,
+        le=200,
+        description="Max words for simple query classification"
+    )
+    llm_complexity_moderate_max_words: int = Field(
+        default=200,
+        ge=50,
+        le=500,
+        description="Max words for moderate query classification"
+    )
+    llm_enable_provider_override: bool = Field(
+        default=True,
+        description="Allow manual provider selection via API"
+    )
     
     # -------------------------------------------------------------------------
     # Retry Configuration

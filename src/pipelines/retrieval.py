@@ -4,10 +4,10 @@ Retrieval Pipeline for RAG Query Processing
 Processes queries through:
 1. Query embedding generation
 2. Vector similarity search in Qdrant
-3. LLM-based answer generation (streaming or complete)
+3. LLM-based answer generation (streaming or complete) via aisuite multi-provider support
 """
 
-from typing import List, Dict, Any, Iterator
+from typing import List, Dict, Any, Iterator, Optional
 from haystack.core.pipeline import Pipeline
 from haystack.dataclasses import Document
 from haystack.components.embedders import OpenAITextEmbedder
@@ -17,6 +17,8 @@ from haystack.dataclasses import ChatMessage
 from haystack.utils import Secret
 from src.document_stores.store import QdrantDocumentStore
 from src.config.settings import settings
+from src.llm.router import get_router
+from src.llm.provider import get_provider_registry
 import logging
 import time
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -122,15 +124,20 @@ def _search_documents_with_retry(document_store: QdrantDocumentStore, query_embe
     )
 
 
-def retrieve_documents(query: str, top_k: int = None) -> Dict[str, Any]:
+def retrieve_documents(
+    query: str,
+    top_k: int = None,
+    provider_override: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Retrieve relevant documents and generate an answer for a query.
     
-    Includes automatic retry logic and performance timing.
+    Includes automatic retry logic, performance timing, and multi-provider support.
     
     Args:
         query: The user's question
         top_k: Number of documents to retrieve (uses settings default if not provided)
+        provider_override: Optional manual provider selection (openai|anthropic|groq)
         
     Returns:
         dict: Contains retrieved documents and generated answer with timing metadata
@@ -175,46 +182,86 @@ def retrieve_documents(query: str, top_k: int = None) -> Dict[str, Any]:
         logger.error(f"Document search failed after retries: {e}")
         raise ExternalServiceError(f"Failed to search documents: {e}")
     
-    # Step 3: Generate answer with LLM
+    # Step 3: Select provider and generate answer with multi-provider support
     gen_start = time.time()
     
     try:
-        prompt_builder = PromptBuilder(template=RAG_PROMPT_TEMPLATE)
-        llm = OpenAIGenerator(
-            api_key=Secret.from_token(settings.openai_api_key),
-            model=settings.fallback_llm_provider.split(":")[1] if ":" in settings.fallback_llm_provider else "gpt-4o-mini",
-            generation_kwargs={
-                "temperature": settings.llm_temperature,
-                "max_tokens": settings.llm_max_tokens
-            }
-        )
+        # Select provider using router
+        router = get_router()
+        provider_name, model = router.select_provider(query, provider_override)
         
-        # Create a simple RAG pipeline
-        rag_pipeline = Pipeline()
-        rag_pipeline.add_component("prompt_builder", prompt_builder)
-        rag_pipeline.add_component("llm", llm)
-        rag_pipeline.connect("prompt_builder", "llm")
+        # Get provider registry and aisuite client
+        registry = get_provider_registry()
+        client = registry.client
         
-        # Run the pipeline with documents and question
-        result = rag_pipeline.run({
-            "prompt_builder": {
-                "documents": documents,
-                "question": query
-            }
-        })
+        # Build prompt with documents
+        context = "\n\n".join([f"Document {i+1}:\n{doc.content}" for i, doc in enumerate(documents)])
+        prompt = RAG_PROMPT_TEMPLATE.replace("{% for doc in documents %}\n{{ doc.content }}\n{% endfor %}", context)
+        prompt = prompt.replace("{{ question }}", query)
+        
+        # Generate answer using aisuite with fallback chain
+        answer = None
+        provider_used = provider_name
+        fallback_occurred = False
+        
+        # Try primary provider
+        try:
+            messages = [{"role": "user", "content": prompt}]
+            response = client.chat.completions.create(
+                model=f"{provider_name}:{model}",
+                messages=messages,
+                temperature=settings.llm_temperature,
+                max_tokens=settings.llm_max_tokens,
+            )
+            answer = response.choices[0].message.content
+            registry.record_request_success(provider_name)
+            
+        except Exception as primary_error:
+            logger.warning(f"Primary provider {provider_name} failed: {primary_error}")
+            registry.record_request_failure(provider_name, str(primary_error))
+            
+            # Try fallback chain
+            fallback_chain = router.get_fallback_chain(provider_name)
+            for fallback_provider, fallback_model in fallback_chain:
+                try:
+                    logger.info(f"Attempting fallback: {fallback_provider}:{fallback_model}")
+                    response = client.chat.completions.create(
+                        model=f"{fallback_provider}:{fallback_model}",
+                        messages=messages,
+                        temperature=settings.llm_temperature,
+                        max_tokens=settings.llm_max_tokens,
+                    )
+                    answer = response.choices[0].message.content
+                    provider_used = fallback_provider
+                    fallback_occurred = True
+                    registry.record_request_success(fallback_provider)
+                    logger.info(f"Fallback successful with {fallback_provider}")
+                    break
+                except Exception as fallback_error:
+                    logger.warning(f"Fallback provider {fallback_provider} failed: {fallback_error}")
+                    registry.record_request_failure(fallback_provider, str(fallback_error))
+                    continue
+            
+            if answer is None:
+                raise ExternalServiceError(f"All LLM providers failed. Last error: {primary_error}")
         
         timing["generation_ms"] = round((time.time() - gen_start) * 1000, 2)
         timing["total_ms"] = round((time.time() - overall_start) * 1000, 2)
         
-        logger.info(f"Answer generated in {timing['generation_ms']}ms (total: {timing['total_ms']}ms)")
+        logger.info(
+            f"Answer generated by {provider_used} in {timing['generation_ms']}ms "
+            f"(total: {timing['total_ms']}ms, fallback: {fallback_occurred})"
+        )
         
         return {
             "query": query,
             "documents": documents,
-            "answer": result["llm"]["replies"][0] if result.get("llm", {}).get("replies") else "No answer generated",
+            "answer": answer or "No answer generated",
             "metadata": {
                 "num_documents_retrieved": len(documents),
                 "top_k": top_k,
+                "provider_used": provider_used,
+                "provider_fallback": fallback_occurred,
                 **timing
             }
         }
@@ -223,15 +270,20 @@ def retrieve_documents(query: str, top_k: int = None) -> Dict[str, Any]:
         raise ExternalServiceError(f"Failed to generate answer: {e}")
 
 
-def retrieve_documents_streaming(query: str, top_k: int = None) -> Iterator[Dict[str, Any]]:
+def retrieve_documents_streaming(
+    query: str,
+    top_k: int = None,
+    provider_override: Optional[str] = None
+) -> Iterator[Dict[str, Any]]:
     """
     Retrieve documents and stream the LLM's answer token by token.
     
-    Uses native OpenAI SDK for streaming support with retry logic and timing.
+    Uses aisuite with multi-provider support, retry logic, and timing.
     
     Args:
         query: The user's question
         top_k: Number of documents to retrieve
+        provider_override: Optional manual provider selection (openai|anthropic|groq)
         
     Yields:
         dict: Documents first, then individual answer tokens with timing
@@ -295,10 +347,18 @@ def retrieve_documents_streaming(query: str, top_k: int = None) -> Iterator[Dict
         }
     }
     
-    # Step 3: Stream answer from OpenAI with timeout
+    # Step 3: Select provider and stream answer with multi-provider support
     gen_start = time.time()
     
     try:
+        # Select provider using router
+        router = get_router()
+        provider_name, model = router.select_provider(query, provider_override)
+        
+        # Get provider registry and aisuite client
+        registry = get_provider_registry()
+        client = registry.client
+        
         # Format documents into context string
         context = "\n\n".join([
             f"Document {i+1}:\n{doc.content}" 
@@ -309,48 +369,120 @@ def retrieve_documents_streaming(query: str, top_k: int = None) -> Iterator[Dict
         prompt = RAG_PROMPT_TEMPLATE.replace("{% for doc in documents %}\n{{ doc.content }}\n{% endfor %}", context)
         prompt = prompt.replace("{{ question }}", query)
         
-        # Stream using native OpenAI SDK
-        client = openai.OpenAI(api_key=settings.openai_api_key)
+        # Try primary provider with streaming
+        provider_used = provider_name
+        fallback_occurred = False
+        stream_started = False
         
-        model = settings.fallback_llm_provider.split(":")[1] if ":" in settings.fallback_llm_provider else "gpt-4o-mini"
-        
-        stream = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=settings.llm_temperature,
-            max_tokens=settings.llm_max_tokens,
-            stream=True,
-            timeout=60  # 60 second timeout
-        )
-        
-        token_count = 0
-        for chunk in stream:
-            if chunk.choices[0].delta.content is not None:
-                token_count += 1
-                yield {
-                    "type": "token",
-                    "data": chunk.choices[0].delta.content
+        try:
+            messages = [{"role": "user", "content": prompt}]
+            stream = client.chat.completions.create(
+                model=f"{provider_name}:{model}",
+                messages=messages,
+                temperature=settings.llm_temperature,
+                max_tokens=settings.llm_max_tokens,
+                stream=True,
+            )
+            
+            token_count = 0
+            for chunk in stream:
+                stream_started = True
+                if hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content is not None:
+                    token_count += 1
+                    yield {
+                        "type": "token",
+                        "data": chunk.choices[0].delta.content
+                    }
+            
+            registry.record_request_success(provider_name)
+            
+            timing["generation_ms"] = round((time.time() - gen_start) * 1000, 2)
+            timing["total_ms"] = round((time.time() - overall_start) * 1000, 2)
+            
+            logger.info(
+                f"Streamed {token_count} tokens from {provider_used} in {timing['generation_ms']}ms "
+                f"(total: {timing['total_ms']}ms)"
+            )
+            
+            # Send completion metadata
+            yield {
+                "type": "done",
+                "metadata": {
+                    "tokens_streamed": token_count,
+                    "provider_used": provider_used,
+                    "provider_fallback": fallback_occurred,
+                    **timing
                 }
-        
-        timing["generation_ms"] = round((time.time() - gen_start) * 1000, 2)
-        timing["total_ms"] = round((time.time() - overall_start) * 1000, 2)
-        
-        logger.info(f"Streamed {token_count} tokens in {timing['generation_ms']}ms (total: {timing['total_ms']}ms)")
-        
-        # Send completion metadata
-        yield {
-            "type": "done",
-            "metadata": {
-                "tokens_streamed": token_count,
-                **timing
             }
-        }
-    except openai.Timeout as e:
-        logger.error(f"OpenAI request timed out after 60s: {e}")
-        yield {
-            "type": "error",
-            "error": f"LLM generation timed out: {str(e)}"
-        }
+            
+        except Exception as primary_error:
+            logger.warning(f"Primary provider {provider_name} failed: {primary_error}")
+            registry.record_request_failure(provider_name, str(primary_error))
+            
+            # If streaming already started, we can't fallback gracefully
+            if stream_started:
+                yield {
+                    "type": "error",
+                    "error": f"Stream interrupted from {provider_name}: {str(primary_error)}"
+                }
+                return
+            
+            # Try fallback chain (only if stream hasn't started yet)
+            fallback_chain = router.get_fallback_chain(provider_name)
+            fallback_success = False
+            
+            for fallback_provider, fallback_model in fallback_chain:
+                try:
+                    logger.info(f"Attempting fallback: {fallback_provider}:{fallback_model}")
+                    stream = client.chat.completions.create(
+                        model=f"{fallback_provider}:{fallback_model}",
+                        messages=messages,
+                        temperature=settings.llm_temperature,
+                        max_tokens=settings.llm_max_tokens,
+                        stream=True,
+                    )
+                    
+                    token_count = 0
+                    for chunk in stream:
+                        if hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content is not None:
+                            token_count += 1
+                            yield {
+                                "type": "token",
+                                "data": chunk.choices[0].delta.content
+                            }
+                    
+                    provider_used = fallback_provider
+                    fallback_occurred = True
+                    fallback_success = True
+                    registry.record_request_success(fallback_provider)
+                    
+                    timing["generation_ms"] = round((time.time() - gen_start) * 1000, 2)
+                    timing["total_ms"] = round((time.time() - overall_start) * 1000, 2)
+                    
+                    logger.info(f"Fallback successful: streamed {token_count} tokens from {fallback_provider}")
+                    
+                    yield {
+                        "type": "done",
+                        "metadata": {
+                            "tokens_streamed": token_count,
+                            "provider_used": provider_used,
+                            "provider_fallback": fallback_occurred,
+                            **timing
+                        }
+                    }
+                    break
+                    
+                except Exception as fallback_error:
+                    logger.warning(f"Fallback provider {fallback_provider} failed: {fallback_error}")
+                    registry.record_request_failure(fallback_provider, str(fallback_error))
+                    continue
+            
+            if not fallback_success:
+                yield {
+                    "type": "error",
+                    "error": f"All LLM providers failed. Last error: {str(primary_error)}"
+                }
+                
     except Exception as e:
         logger.error(f"Streaming generation failed: {e}")
         yield {

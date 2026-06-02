@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 import logging
 import json
+from typing import Optional
 from src.api.schemas.query import QueryRequest, QueryResponse
 from src.pipelines.retrieval import retrieve_documents, retrieve_documents_streaming
 
@@ -9,15 +10,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-async def generate_sse_stream(query: str, top_k: int):
+async def generate_sse_stream(query: str, top_k: int, provider_override: Optional[str] = None):
     """Generate Server-Sent Events stream for query results."""
     try:
-        for chunk in retrieve_documents_streaming(query=query, top_k=top_k):
+        for chunk in retrieve_documents_streaming(query=query, top_k=top_k, provider_override=provider_override):
             if chunk["type"] == "documents":
                 # Send document metadata first
                 data = {
                     "type": "documents",
-                    "count": len(chunk["documents"]),
+                    "count": len(chunk["data"]),
                     "metadata": chunk["metadata"]
                 }
                 yield f"data: {json.dumps(data)}\n\n"
@@ -26,13 +27,13 @@ async def generate_sse_stream(query: str, top_k: int):
                 # Send each token as it arrives
                 data = {
                     "type": "token",
-                    "content": chunk["content"]
+                    "content": chunk["data"]
                 }
                 yield f"data: {json.dumps(data)}\n\n"
                 
             elif chunk["type"] == "done":
-                # Signal completion
-                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                # Signal completion with metadata
+                yield f"data: {json.dumps({'type': 'done', 'metadata': chunk.get('metadata', {})})}\n\n"
                 
             elif chunk["type"] == "error":
                 # Send error and stop
@@ -73,7 +74,11 @@ async def query_documents(query_request: QueryRequest):
     # Handle streaming vs non-streaming
     if query_request.stream:
         return StreamingResponse(
-            generate_sse_stream(query=query_request.query, top_k=query_request.top_k),
+            generate_sse_stream(
+                query=query_request.query,
+                top_k=query_request.top_k,
+                provider_override=query_request.provider
+            ),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -86,7 +91,8 @@ async def query_documents(query_request: QueryRequest):
     try:
         results = retrieve_documents(
             query=query_request.query,
-            top_k=query_request.top_k
+            top_k=query_request.top_k,
+            provider_override=query_request.provider
         )
         
         return QueryResponse(

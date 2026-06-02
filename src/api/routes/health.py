@@ -25,7 +25,7 @@ _start_time = time.time()
     "/health",
     response_model=HealthResponse,
     summary="Health Check",
-    description="Check the health status of the API and its dependencies (Qdrant).",
+    description="Check the health status of the API and its dependencies (Qdrant, LLM providers).",
     responses={
         200: {"description": "All services healthy"},
         503: {"description": "One or more services unhealthy"},
@@ -45,15 +45,21 @@ async def health_check() -> JSONResponse:
     # Check Qdrant connectivity
     try:
         from src.document_stores.store import get_document_store
+        from src.llm.provider import get_provider_registry
         
         store = get_document_store()
         doc_count = store.count_documents()
+        
+        # Get provider health status
+        provider_registry = get_provider_registry()
+        provider_health = provider_registry.get_all_health()
         
         response_data = {
             "status": "healthy",
             "qdrant": "connected",
             "qdrant_collection": store.collection_name,
             "document_count": doc_count,
+            "providers": provider_health,
             "timestamp": timestamp,
             "uptime": uptime_seconds,
             "api_version": "0.3.0"

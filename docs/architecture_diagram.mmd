@@ -1,0 +1,94 @@
+flowchart TB
+    subgraph CLIENT["Client Layer"]
+        direction LR
+        WEB["Student Web UI<br/>(React/Vue)"]
+        ADMIN["Instructor Admin<br/>(Dashboard)"]
+    end
+
+    subgraph API["FastAPI Backend"]
+        direction TB
+        AUTH["Authentication<br/>(JWT, passlib)"]
+        ROUTES["API Routes"]
+        MIDDLEWARE["Middleware<br/>(Logging, Rate Limiting)"]
+        
+        subgraph BUSINESS["Business Logic"]
+            CURRICULUM["Curriculum Manager"]
+            PROGRESS["Progress Tracker"]
+            QUIZ["Adaptive Quiz Engine"]
+            COST["Cost Monitor"]
+        end
+    end
+
+    subgraph PIPELINE["Haystack 2.x Pipelines"]
+        direction TB
+        INDEX["Indexing Pipeline<br/>(File Extraction)"]
+        RETRIEVAL["Retrieval Pipeline<br/>(RAG)"]
+    end
+
+    subgraph STORAGE["Data Storage Layer"]
+        direction TB
+        POSTGRES[("PostgreSQL<br/>(Users, Progress,<br/>Curriculum)")]
+        QDRANT[("Qdrant Vector DB<br/>(Legal Content<br/>Embeddings)")]
+        REDIS[("Redis Cache<br/>(QA Pairs,<br/>Rate Limits)")]
+    end
+
+    subgraph LLM["LLM Layer"]
+        direction LR
+        ROUTER["LLM Router<br/>(aisuite)"]
+        GPT4["GPT-4o-mini<br/>(Primary)"]
+        GPT4FULL["GPT-4<br/>(Fallback)"]
+    end
+
+    subgraph EXTERNAL["External Services"]
+        S3["AWS S3<br/>(Document Storage)"]
+        CLOUDWATCH["CloudWatch<br/>(Monitoring)"]
+    end
+
+    %% Client connections
+    WEB -->|HTTPS| ROUTES
+    ADMIN -->|Upload Modules| ROUTES
+
+    %% API internal flow
+    ROUTES --> AUTH
+    ROUTES --> MIDDLEWARE
+    ROUTES --> BUSINESS
+    
+    %% Business logic connections
+    CURRICULUM --> POSTGRES
+    PROGRESS --> POSTGRES
+    QUIZ --> RETRIEVAL
+    QUIZ --> ROUTER
+    COST --> REDIS
+
+    %% Pipeline connections
+    INDEX -->|Store Vectors| QDRANT
+    INDEX -->|Extract Content| S3
+    RETRIEVAL -->|Query Vectors| QDRANT
+    RETRIEVAL -->|Check Cache| REDIS
+    RETRIEVAL -->|Generate Answer| ROUTER
+
+    %% Storage connections
+    POSTGRES -.->|User Data| BUSINESS
+    QDRANT -.->|Legal Content| RETRIEVAL
+    REDIS -.->|Cache Hits| RETRIEVAL
+
+    %% LLM routing
+    ROUTER -->|Primary Provider| GPT4
+    ROUTER -->|Fallback| GPT4FULL
+
+    %% External services
+    INDEX --> S3
+    API --> CLOUDWATCH
+
+    %% Styling
+    classDef clientStyle fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef apiStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef storageStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef llmStyle fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef externalStyle fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class WEB,ADMIN clientStyle
+    class AUTH,ROUTES,MIDDLEWARE,CURRICULUM,PROGRESS,QUIZ,COST apiStyle
+    class POSTGRES,QDRANT,REDIS storageStyle
+    class ROUTER,GPT4,GPT4FULL llmStyle
+    class S3,CLOUDWATCH externalStyle
